@@ -58,17 +58,39 @@ def style_row(ws, r):
         c.alignment = Alignment(wrap_text=True, vertical="top"); c.border = Border(top=THIN, bottom=THIN, left=THIN, right=THIN)
 
 
+def new_workbook():
+    """Create an empty tracker with the standard columns and a criteria sheet."""
+    from openpyxl import Workbook
+    wb = Workbook(); ws = wb.active; ws.title = "Matching Jobs"
+    ws.append(["#", "Company", "Job Role", "Location", "Work Mode", "Experience Required (per posting)", "Match Score",
+               "Brief Description", "Why It Matches Your Resume", "Apply Link", "Link Check (last run)", "Date Added"])
+    for c in ws[1]:
+        c.font = Font(bold=True, color="FFFFFF"); c.fill = HDR; c.alignment = Alignment(wrap_text=True, vertical="center", horizontal="center")
+    for col, w in zip("ABCDEFGHIJKL", [4, 18, 34, 20, 11, 26, 9, 60, 48, 50, 24, 13]): ws.column_dimensions[col].width = w
+    ws.freeze_panes = "C2"
+    ws3 = wb.create_sheet("Search Criteria")
+    for row in [["Candidate", "Harpreet Singh Chhabra – AI Engineer & Tech Lead (Agentic AI, LLM apps, RAG, LLM evaluation)"],
+                ["Target roles", "AI Engineer, GenAI/LLM Engineer, Agentic AI / AI Agent Engineer, Applied AI Engineer, Forward Deployed Engineer, AI Solutions/Platform Engineer. Data Scientist / ML / Applied Scientist roles only when clearly LLM/agent work."],
+                ["Locations", "India (any city) or remote roles open to India/Global."],
+                ["Experience", "Posting's minimum required experience ≤ 2 years (or not stated and not Senior/Staff/Lead/Manager)."],
+                ["Sources", "Only official company career pages / company-hosted job boards (Greenhouse, Lever, Ashby, Workday, SmartRecruiters, amazon.jobs, Microsoft Careers). No aggregators."],
+                ["Link check", "Each run checks every link: HTTP 200 and posting still live on the company's careers system. Closed jobs are struck through, never deleted."],
+                ["Colour key", "Match score: green ≥85%, yellow 75–84%, orange <75%. Blue date = added on that run."]]:
+        ws3.append(row)
+    for c in ws3["A"]: c.font = Font(bold=True)
+    ws3.column_dimensions["A"].width = 16; ws3.column_dimensions["B"].width = 120
+    for r in ws3.iter_rows():
+        for c in r: c.alignment = Alignment(wrap_text=True, vertical="top")
+    wb.save(XLSX)
+
+
 def main():
     seen = json.load(open(os.path.join(HERE, "seen_jobs.json")))
     shortlist = {j["id"]: j for j in json.load(open(os.path.join(DATA, "shortlist.json")))}
     sel_path = os.path.join(DATA, "selected.json")
     selected = json.load(open(sel_path)) if os.path.exists(sel_path) else []
+    if not os.path.exists(XLSX): new_workbook()
     wb = load_workbook(XLSX); ws = wb["Matching Jobs"]
-    if ws.cell(1, 12).value != "Date Added":
-        h = ws.cell(1, 12, "Date Added"); h.font = Font(bold=True, color="FFFFFF"); h.fill = HDR
-        for r in range(2, ws.max_row + 1): ws.cell(r, 12, "2026-09-29")
-        ws.column_dimensions["L"].width = 13
-    ws.cell(1, 11).value = "Link Check (last run)"
 
     # 1. Re-check jobs already in the sheet; mark closed ones instead of removing/duplicating them.
     in_sheet = set(); roles = set(); closed = 0

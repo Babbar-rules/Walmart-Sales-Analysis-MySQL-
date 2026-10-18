@@ -13,6 +13,17 @@ EXCLUDE = (r"senior|\bsr\.?\b|staff|principal|lead\b|manager|director|head\b|\bV
            r"counsel|legal|marketing|designer|\bIII\b|\bIV\b|chief|executive|partner|finance|specialist|onboarding|analyst|data associate|associate ii")
 
 
+DS_ML = r"data scien|applied scien|machine learning|\bML\b|research"
+AI_FOCUS = r"\bAI\b|gen ?ai|generative|\bLLM|agent|forward deployed|deployed engineer"
+LLM_DESC = r"\bLLMs?\b|large language|generative ai|genai|agentic|\bagents?\b|\bRAG\b|retrieval.augmented|prompt"
+
+
+def ai_focused(j):
+    """Keep data-science / ML / scientist titles only when the work is clearly about LLMs or agents."""
+    if re.search(AI_FOCUS, j["title"], re.I) or not re.search(DS_ML, j["title"], re.I): return True
+    return len(re.findall(LLM_DESC, j["desc"], re.I)) >= 3
+
+
 def region(loc):
     if re.search(IND, loc, re.I) or re.search(r"\bIND?\b", loc): return "India"
     if re.search(r"remote", loc, re.I) and re.search(r"global|worldwide|anywhere|APAC|Asia", loc, re.I): return "Remote (Global/APAC)"
@@ -52,7 +63,7 @@ def main():
     out, keys = [], set()
     for j in c:
         r = region(j["loc"])
-        if not r or j["url"] in seen: continue
+        if not r or j["url"] in seen or not ai_focused(j): continue
         k = (j["company"].lower(), j["title"].strip().lower(), j["loc"][:20])
         if k in keys: continue  # duplicate posting of the same role/location
         keys.add(k)
