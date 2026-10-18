@@ -49,6 +49,10 @@ def verdict(u):
     return False, "❌ Closed / link not working"
 
 
+def role_key(company, title):
+    return (re.sub(r"\W+", "", str(company)).lower(), re.sub(r"\W+", "", str(title)).lower())
+
+
 def style_row(ws, r):
     for c in ws[r]:
         c.alignment = Alignment(wrap_text=True, vertical="top"); c.border = Border(top=THIN, bottom=THIN, left=THIN, right=THIN)
@@ -67,11 +71,11 @@ def main():
     ws.cell(1, 11).value = "Link Check (last run)"
 
     # 1. Re-check jobs already in the sheet; mark closed ones instead of removing/duplicating them.
-    in_sheet = set(); closed = 0
+    in_sheet = set(); roles = set(); closed = 0
     for r in range(2, ws.max_row + 1):
         u = ws.cell(r, 10).value
         if not u: continue
-        in_sheet.add(u)
+        in_sheet.add(u); roles.add(role_key(ws.cell(r, 2).value, ws.cell(r, 3).value))
         ok, msg = verdict(u)
         ws.cell(r, 11).value = f"{msg} ({TODAY})"
         if not ok:
@@ -83,6 +87,7 @@ def main():
     for s in sorted(selected, key=lambda s: -s["score"]):
         j = shortlist[s["id"]]
         if j["url"] in in_sheet or j["url"] in seen: continue
+        if role_key(s["company"], j["title"]) in roles: continue  # same role re-posted under a new link
         ok, msg = verdict(j["url"])
         if not ok: rejected_links.append(j["url"]); continue
         n = ws.max_row
@@ -93,7 +98,7 @@ def main():
         ws.cell(r, 7).number_format = "0%"
         ws.cell(r, 7).fill = PatternFill("solid", fgColor="E2EFDA" if s["score"] >= 85 else "FFF2CC" if s["score"] >= 75 else "FCE4D6")
         ws.cell(r, 12).fill = PatternFill("solid", fgColor="DDEBF7")
-        in_sheet.add(j["url"]); added.append(f"{s['score']}% {s['company']} – {j['title'].strip()}")
+        in_sheet.add(j["url"]); roles.add(role_key(s["company"], j["title"])); added.append(f"{s['score']}% {s['company']} – {j['title'].strip()}")
     ws.auto_filter.ref = ws.dimensions
 
     # 3. Remember everything reviewed this run (selected or not) so it is never re-added or re-reviewed.
